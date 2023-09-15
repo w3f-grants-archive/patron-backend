@@ -24,6 +24,7 @@ pub struct Server {
     pub address: SocketAddr,
 }
 
+/// Implementation of [`serde`]'s deserializer for [`FromStr`] types.
 #[cfg(feature = "logging")]
 fn deserialize_from_str<'de, T, D>(deserializer: D) -> Result<T, D::Error>
 where
@@ -113,11 +114,11 @@ fn default_metadata_size_limit() -> usize {
 }
 
 fn default_memory_limit() -> i64 {
-    n_gib_bytes!(8) as i64
+    n_gib_bytes!(4) as i64
 }
 
 fn default_memory_swap_limit() -> i64 {
-    n_gib_bytes!(8) as i64
+    n_gib_bytes!(4) as i64
 }
 
 fn default_volume_size() -> String {
@@ -165,9 +166,19 @@ pub struct Config {
     /// Storage configuration.
     pub storage: Storage,
 
+    /// Supported cargo-contract tooling versions.
+    ///
+    /// Docker Hub tags can be used for reference.
+    #[serde(default = "default_supported_cargo_contract_versions")]
+    pub supported_cargo_contract_versions: Vec<String>,
+
     /// Enable payments support.
     #[serde(default = "default_payments")]
     pub payments: bool,
+}
+
+fn default_supported_cargo_contract_versions() -> Vec<String> {
+    vec![String::from("4.0.0-alpha"), String::from("3.1.0")]
 }
 
 fn default_payments() -> bool {
@@ -180,9 +191,9 @@ impl Config {
     /// See [`Env`] for more details on how to use environment variables configuration.
     ///
     /// [`Env`]: figment::providers::Env
-    pub fn new() -> Result<Self, figment::Error> {
+    pub fn new(path: Option<PathBuf>) -> Result<Self, figment::Error> {
         Figment::new()
-            .merge(Toml::file("Config.toml"))
+            .merge(Toml::file(path.unwrap_or(PathBuf::from("Config.toml"))))
             .merge(Env::prefixed("CONFIG_").split("_"))
             .extract()
     }
@@ -206,6 +217,7 @@ impl Config {
                 endpoint_url: String::new(),
                 source_code_bucket: String::new(),
             },
+            supported_cargo_contract_versions: default_supported_cargo_contract_versions(),
             payments: false,
         }
     }
